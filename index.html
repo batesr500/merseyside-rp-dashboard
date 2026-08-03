@@ -90,7 +90,6 @@
 
             <!-- TAB 1: OVERVIEW -->
             <div id="tab-overview" class="tab-content active space-y-6">
-                <!-- METRICS OVERVIEW -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
                         <div>
@@ -146,10 +145,10 @@
                                 <div>
                                     <label class="text-xs font-medium text-slate-400 mb-1 block">Primary Deployment Division</label>
                                     <select id="divisionSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                                        <option value="Roads Policing">Roads Policing Unit (RPU)</option>
-                                        <option value="Armed Policing">Armed Policing (Matrix)</option>
-                                        <option value="Dog Support Unit">Dog Support Unit (DSU)</option>
-                                        <option value="NPAS">National Police Air Service (NPAS)</option>
+                                        <option value="Roads Policing (RPU)">Roads Policing Unit (RPU)</option>
+                                        <option value="Armed Policing (Matrix)">Armed Policing (Matrix)</option>
+                                        <option value="Dog Support Unit (DSU)">Dog Support Unit (DSU)</option>
+                                        <option value="NPAS (Air Support)">National Police Air Service (NPAS)</option>
                                     </select>
                                 </div>
 
@@ -317,30 +316,70 @@
         </div>
     </main>
 
-    <!-- INTERACTIVE JAVASCRIPT -->
+    <!-- INTERACTIVE JAVASCRIPT & DISCORD INTEGRATION -->
     <script>
         lucide.createIcons();
 
+        // 🚨 PASTE YOUR DISCORD WEBHOOK URL BELOW BETWEEN THE QUOTES 🚨
+        const DISCORD_WEBHOOK_URL = https://discord.com/api/webhooks/1533798854179291210/gfiF68yQqN99_cNrf3FZzL2S8tRnzE0cfjdvie0csShV1J8YweL5Gt3duzItxi4kQjxP;
+
+        // Send formatted logs directly to Discord Channel
+        function sendDiscordLog(action, division, duration = null) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK_URL_HERE")) {
+                console.warn("Discord Webhook URL is not configured yet!");
+                return;
+            }
+
+            const officerName = "PC 404 J. Smith"; 
+            const isClockingIn = action === "Clocked ON";
+            
+            // Color: Green for Clock On (3066993), Red for Clock Off (15158332)
+            const embedColor = isClockingIn ? 3066993 : 15158332;
+
+            const fields = [
+                { name: "Officer", value: officerName, inline: true },
+                { name: "Division", value: division, inline: true },
+                { name: "Time", value: new Date().toLocaleTimeString('en-GB') + " BST", inline: true }
+            ];
+
+            if (duration) {
+                fields.push({ name: "Shift Duration", value: duration, inline: false });
+            }
+
+            const payload = {
+                username: "Merseyside Duty Logger",
+                avatar_url: "https://cdn-icons-png.flaticon.com/512/2560/2560759.png",
+                embeds: [{
+                    title: `🚔 Shift Update: ${action}`,
+                    color: embedColor,
+                    fields: fields,
+                    footer: { text: "Merseyside RP | Police Command Portal" },
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).catch(err => console.error("Error sending to Discord:", err));
+        }
+
         // TAB SWITCHING LOGIC
         function switchTab(tabName) {
-            // Hide all tab contents
             const tabs = document.querySelectorAll('.tab-content');
             tabs.forEach(tab => tab.classList.remove('active'));
 
-            // Show selected tab content
             document.getElementById('tab-' + tabName).classList.add('active');
 
-            // Reset navigation button styles
             const navButtons = document.querySelectorAll('nav button');
             navButtons.forEach(btn => {
                 btn.className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition text-left";
             });
 
-            // Highlight selected navigation button
             const activeNav = document.getElementById('nav-' + tabName);
             activeNav.className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-blue-600 text-white font-medium transition text-left";
 
-            // Update Header Title
             const pageTitle = document.getElementById('pageTitle');
             if(tabName === 'overview') pageTitle.innerHTML = '<i data-lucide="layout-dashboard" class="text-blue-500 w-5 h-5"></i> Overview & Dashboard';
             if(tabName === 'duty') pageTitle.innerHTML = '<i data-lucide="clock" class="text-blue-500 w-5 h-5"></i> Duty & Hours Logger';
@@ -378,6 +417,9 @@
                 clockOutBtn.disabled = false;
                 clockOutBtn.className = 'w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2.5 rounded-xl transition text-sm';
 
+                // Send Discord Alert
+                sendDiscordLog("Clocked ON", division);
+
                 timerInterval = setInterval(() => {
                     secondsOnDuty++;
                     const hrs = String(Math.floor(secondsOnDuty / 3600)).padStart(2, '0');
@@ -388,6 +430,14 @@
 
             } else {
                 clearInterval(timerInterval);
+                const hrs = String(Math.floor(secondsOnDuty / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((secondsOnDuty % 3600) / 60)).padStart(2, '0');
+                const secs = String(secondsOnDuty % 60).padStart(2, '0');
+                const totalTime = `${hrs}h ${mins}m ${secs}s`;
+
+                // Send Discord Alert
+                sendDiscordLog("Clocked OFF", division, totalTime);
+
                 statusBadge.innerText = 'Off Duty';
                 statusBadge.className = 'bg-red-500/10 text-red-400 text-xs px-2.5 py-1 rounded-full font-medium';
 
@@ -399,7 +449,6 @@
 
                 secondsOnDuty = 0;
                 document.getElementById('sessionTimer').innerText = '00:00:00';
-                alert('Shift ended! Hours logged successfully.');
             }
         }
     </script>
